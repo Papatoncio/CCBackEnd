@@ -3,6 +3,8 @@ import express from "express";
 import morgan from "morgan";
 import cors from "cors";
 
+import Auth from "../src/routes/auth.routes";
+
 //Importación de rutas para cada colección de la base de datos
 
 
@@ -21,6 +23,8 @@ app.use(cors()); //Definir uso de cors
 app.get('/', (req, res) => {
     res.json({ message: 'Welcome to my application' });
 });
+
+app.use('/api/auth', Auth);
 
 //Exportación de la configuración
 export default app
