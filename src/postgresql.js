@@ -1,10 +1,10 @@
 const Pool = require('pg').Pool
 const pool = new Pool({
-    host: "roundhouse.proxy.rlwy.net",
-    port: 16071,
-    database: "railway",
+    host: "localhost",
+    port: 5432,
+    database: "capicode",
     user: "postgres",
-    password: "d1GEe4g-1CB3eFgGA5GACcb*1gGd4D4-"
+    password: "linux"
 });
 
 export default pool;
