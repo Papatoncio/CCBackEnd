@@ -29,11 +29,16 @@ export const signIn = (request, response) => {
 
                 if (contrasenaCorrecta) {
                     const token = await authJWT.generateJWTToken(user.nombre, user.correo, user.rol_id);
+                    const userData = {
+                        nombre: user.nombre,
+                        correo: user.correo,
+                        rol_id: user.rol_id
+                    }
 
                     response.status(200).json(generarRespuesta(
                         "Exitó",
                         "Sesión iniciada correctamente",
-                        res.rows,
+                        userData,
                         token
                     ));
                 } else {

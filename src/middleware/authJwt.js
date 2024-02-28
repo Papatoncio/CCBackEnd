@@ -15,16 +15,6 @@ export const verifyToken = async (req, res, next) => {
 
         //Obtiene los datos del usuario mediante el descifrado del token
         const decoded = jwt.verify(token, config.SECRET);
-
-        //Obtiene IdEmpleado desde los datos descifrados
-        req.IdEmpleado = decoded.id;
-
-        //Busca al empleado en la base de datos mediante IdEmpleado
-        const empleado = await Empleado.findById(req.IdEmpleado, { password: 0 });
-
-        //Si encuentra el empleado continua si no muestra un error
-        if (!empleado) return res.status(404).json({ message: "No empleado found" });
-
         next()
     } catch (error) {
         return res.status(401).json({ message: "Unauthorized" });
