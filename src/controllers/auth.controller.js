@@ -53,7 +53,7 @@ export const signIn = (request, response) => {
                 response.status(200).json(generarRespuesta(
                     "Error",
                     "Las credenciales utilizadas con incorrectas",
-                    error.message,
+                    error,
                     null
                 ));
             }
