@@ -1,6 +1,8 @@
 import pool from "../postgresql"
 import { generarRespuesta } from "../middleware/Respuesta";
 import * as authJWT from "../middleware/authJwt";
+import WebSocket from "ws";
+import { wss } from "..";
 
 export const signIn = (request, response) => {
     const loginForm = request.body;
@@ -28,19 +30,39 @@ export const signIn = (request, response) => {
                     await authJWT.comparePassword(loginForm.contrasena, user.contrasena);
 
                 if (contrasenaCorrecta) {
-                    const token = await authJWT.generateJWTToken(user.nombre, user.correo, user.rol_id);
-                    const userData = {
-                        nombre: user.nombre,
-                        correo: user.correo,
-                        rol_id: user.rol_id
-                    }
+                    if (user.estatus_sesion) {
+                        pool.query('UPDATE usuario SET estatus_sesion = false WHERE correo = $1', [loginForm.correo]);
 
-                    response.status(200).json(generarRespuesta(
-                        "Exitó",
-                        "Sesión iniciada correctamente",
-                        userData,
-                        token
-                    ));
+                        // Broadcast the message to all connected clients
+                        wss.clients.forEach((client) => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send("Sesión usuario " + user.correo + " cerrada ~ " + JSON.stringify(user));
+                            }
+                        });
+
+                        response.status(200).json(generarRespuesta(
+                            "Error",
+                            "Sesión activa actualmente, se cerraran todaslas sesiones, intentelo nuevamente",
+                            null,
+                            null
+                        ));
+                    } else {
+                        pool.query('UPDATE usuario SET estatus_sesion = true WHERE correo = $1', [loginForm.correo]);
+
+                        const token = await authJWT.generateJWTToken(user.nombre, user.correo, user.rol_id);
+                        const userData = {
+                            nombre: user.nombre,
+                            correo: user.correo,
+                            rol_id: user.rol_id
+                        }
+
+                        response.status(200).json(generarRespuesta(
+                            "Exitó",
+                            "Sesión iniciada correctamente",
+                            userData,
+                            token
+                        ));
+                    }
                 } else {
                     response.status(200).json(generarRespuesta(
                         "Error",
@@ -142,6 +164,52 @@ export const signUp = async (req, response) => {
                 ));
             }
         });
+    } catch (error) {
+        throw (error.message);
+    }
+}
+
+export const logOut = async (req, response) => {
+    const logOut = req.body;
+
+    try {
+        if (
+            logOut == null &&
+            logOut.correo == null &&
+            logOut.correo == ''
+        ) {
+            response.status(200).json(generarRespuesta(
+                "Error",
+                "Hubo un error al obtener los datos",
+                null,
+                null
+            ));
+        }
+
+        pool.query('SELECT * FROM usuario WHERE correo = $1', [logOut.correo], async (error, res) => {
+            if (res.rows.length != 0) {
+                try {
+                    pool.query('UPDATE usuario SET estatus_sesion = false WHERE correo = $1', [logOut.correo]);
+
+                    response.status(200).json(generarRespuesta(
+                        "Exitó",
+                        "Sesión cerrada correctamente",
+                        null,
+                        null
+                    ));
+                } catch (error) {
+                    throw (error.message);
+                }
+            } else {
+                response.status(200).json(generarRespuesta(
+                    "Error",
+                    "El usuario no existe",
+                    error,
+                    null
+                ));
+            }
+        }
+        )
     } catch (error) {
         throw (error.message);
     }
