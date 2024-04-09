@@ -175,8 +175,8 @@ export const logOut = async (req, response) => {
     try {
         if (
             logOut == null &&
-            logOut.correo == null &&
-            logOut.correo == ''
+            logOut.userName == null &&
+            logOut.userName == ''
         ) {
             response.status(200).json(generarRespuesta(
                 "Error",
@@ -186,15 +186,60 @@ export const logOut = async (req, response) => {
             ));
         }
 
-        pool.query('SELECT * FROM usuario WHERE correo = $1', [logOut.correo], async (error, res) => {
+        pool.query('SELECT * FROM usuario WHERE nombre = $1', [logOut.userName], async (error, res) => {
             if (res.rows.length != 0) {
                 try {
-                    pool.query('UPDATE usuario SET estatus_sesion = false WHERE correo = $1', [logOut.correo]);
+                    pool.query('UPDATE usuario SET estatus_sesion = false WHERE nombre = $1', [logOut.userName]);
 
                     response.status(200).json(generarRespuesta(
                         "Exitó",
                         "Sesión cerrada correctamente",
                         null,
+                        null
+                    ));
+                } catch (error) {
+                    throw (error.message);
+                }
+            } else {
+                response.status(200).json(generarRespuesta(
+                    "Error",
+                    "El usuario no existe",
+                    error,
+                    null
+                ));
+            }
+        }
+        )
+    } catch (error) {
+        throw (error.message);
+    }
+}
+
+export const getEstatusSesion = async (req, response) => {
+    const logOut = req.body;
+
+    try {
+        if (
+            logOut == null &&
+            logOut.userName == null &&
+            logOut.userName == ''
+        ) {
+            response.status(200).json(generarRespuesta(
+                "Error",
+                "Hubo un error al obtener los datos",
+                null,
+                null
+            ));
+        }
+
+        pool.query('SELECT * FROM usuario WHERE nombre = $1', [logOut.userName], async (error, res) => {
+            if (res.rows.length != 0) {
+                const user = res.rows[0];
+                try {
+                    response.status(200).json(generarRespuesta(
+                        "Exitó",
+                        "Estatus sesión",
+                        user.estatus_sesion,
                         null
                     ));
                 } catch (error) {
