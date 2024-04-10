@@ -5,6 +5,7 @@ import cors from "cors";
 
 import Auth from "../src/routes/auth.routes";
 import Recover from "../src/routes/recoverPassword.routes";
+import User from "../src/routes/user.routes";
 
 //Importación de rutas para cada colección de la base de datos
 
@@ -26,6 +27,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", Auth);
 app.use("/api/mail", Recover);
+app.use("/api/user", User);
 
 //Exportación de la configuración
 export default app;
