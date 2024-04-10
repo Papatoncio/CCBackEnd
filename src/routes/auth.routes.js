@@ -12,4 +12,6 @@ router.post('/logOut', authController.logOut);
 
 router.post('/getEstatusSesion', authController.getEstatusSesion);
 
+router.post('/sendOTP', authController.sendOTP);
+
 export default router

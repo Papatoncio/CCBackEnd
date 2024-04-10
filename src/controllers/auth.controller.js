@@ -3,6 +3,7 @@ import { generarRespuesta } from "../middleware/Respuesta";
 import * as authJWT from "../middleware/authJwt";
 import WebSocket from "ws";
 import { wss } from "..";
+import { verify } from "jsonwebtoken";
 
 export const signIn = (request, response) => {
     const loginForm = request.body;
@@ -219,6 +220,20 @@ export const getEstatusSesion = async (req, response) => {
     const logOut = req.body;
 
     try {
+        try {
+            const verifyT = await authJWT.verifyToken(req, response);
+            if (verifyT.message === "Unauthorized") {
+                return response.status(200).json(generarRespuesta(
+                    "Error",
+                    "Su sesión ha caducado",
+                    false,
+                    null
+                ));
+            }
+        } catch (error) {
+            throw (error.message);
+        }
+
         if (
             logOut == null &&
             logOut.userName == null &&
@@ -238,7 +253,7 @@ export const getEstatusSesion = async (req, response) => {
                 try {
                     response.status(200).json(generarRespuesta(
                         "Exitó",
-                        "Estatus sesión",
+                        "Sesión cerrada por inició en otro dispositivo",
                         user.estatus_sesion,
                         null
                     ));
@@ -255,6 +270,54 @@ export const getEstatusSesion = async (req, response) => {
             }
         }
         )
+    } catch (error) {
+        throw (error.message);
+    }
+}
+
+export const sendOTP = (request, response) => {
+    const otpForm = request.body;
+
+    try {
+        if (otpForm == null &&
+            otpForm.userName == null &&
+            otpForm.userName == '') {
+
+            response.status(200).json(generarRespuesta(
+                "Exitó",
+                "Las credenciales utilizadas con incorrectas",
+                null,
+                null
+            ));
+        }
+
+        pool.query('SELECT * FROM usuario WHERE nombre = $1', [otpForm.userName], async (error, res) => {
+            if (res.rows.length != 0) {
+                const user = res.rows[0];
+
+                response.status(200).json(generarRespuesta(
+                    "Exitó",
+                    "El código se ha generado correctamente y se envio a la dirección: " + user.correo,
+                    code,
+                    null
+                ));
+                try {
+
+                } catch (error) {
+                    throw (error.message);
+                }
+
+            } else {
+                response.status(200).json(generarRespuesta(
+                    "Error",
+                    "Las credenciales utilizadas con incorrectas",
+                    error,
+                    null
+                ));
+            }
+        });
+
+
     } catch (error) {
         throw (error.message);
     }
