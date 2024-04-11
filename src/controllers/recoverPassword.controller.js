@@ -4,9 +4,8 @@ import { main } from "../mail/mailconfig";
 import { setCodigo } from "../mail/emailCodeRP";
 import * as speakeasy from "speakeasy";
 
-const secret = speakeasy.generateSecret({ length: 20 });
-
 export const sendCode = async (request, response) => {
+  const secret = speakeasy.generateSecret({ length: 20 });
   const { correo } = request.body;
 
   const res = await pool.query("SELECT correo FROM usuario WHERE correo = $1", [
@@ -18,6 +17,7 @@ export const sendCode = async (request, response) => {
       const code = speakeasy.totp({
         secret: secret.base32,
         encoding: "base32",
+        time: 120,
       });
 
       const mailOptions = {
@@ -35,7 +35,7 @@ export const sendCode = async (request, response) => {
               generarRespuesta(
                 "Exito",
                 "Se envió correctamente el código a tu correo.",
-                correo,
+                secret.base32,
                 null
               )
             );
@@ -80,12 +80,14 @@ export const sendCode = async (request, response) => {
 };
 
 export const validCode = async (request, response) => {
-  const { codigo } = request.body;
+  const { codigo, secret } = request.body;
 
   const tokenValidates = speakeasy.totp.verify({
-    secret: secret.base32,
-    encoding: "base32",
+    secret: secret,
     token: codigo,
+    encoding: "base32",
+    window: 6,
+    time: 120,
   });
 
   if (tokenValidates) {
