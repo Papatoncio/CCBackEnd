@@ -35,6 +35,6 @@ export const comparePassword = async (contrasena, contrasenaBD) => {
 
 export const generateJWTToken = async (nombre, correo, rol_id) => {
     return await jwt.sign({ nombre: nombre, correo: correo, rol: rol_id }, config.SECRET, {
-        expiresIn: 20
+        expiresIn: 46200
     });
 }

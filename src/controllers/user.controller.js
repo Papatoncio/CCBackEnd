@@ -63,3 +63,116 @@ export const updatePassword = async (request, response) => {
     }
   }
 };
+
+export const updateUser = async (request, response) => {
+  const updateForm = request.body;
+
+  try {
+    if (updateForm == null &&
+      updateForm.correo == null &&
+      updateForm.correo == '' &&
+      updateForm.userName == null &&
+      updateForm.userName == '' &&
+      updateForm.telefono == null &&
+      updateForm.telefono == '' &&
+      updateForm.twofa == null &&
+      updateForm.twofa == '') {
+
+      return response.status(200).json(generarRespuesta(
+        "Error",
+        "Las credenciales utilizadas con incorrectas",
+        null,
+        null
+      ));
+    }
+
+    const user = await pool.query(
+      "SELECT * FROM usuario WHERE correo = $1",
+      [updateForm.correo]
+    );
+
+    if (user.rows.length != 0) {
+      const resp = await pool.query(
+        "UPDATE usuario SET nombre = $1, correo = $2, telefono = $3, twofa = $4 WHERE correo = $2",
+        [updateForm.userName, updateForm.correo, updateForm.telefono, updateForm.twofa]
+      );
+
+      if (resp) {
+        return response
+          .status(200)
+          .json(
+            generarRespuesta(
+              "Exito",
+              "Se han actualizado los datos correctamente",
+              null,
+              null
+            )
+          );
+      } else {
+        return response
+          .status(200)
+          .json(
+            generarRespuesta(
+              "Error",
+              "Ocurrió un error al actualizar los datos.",
+              null,
+              null
+            )
+          );
+      }
+    }
+  } catch (error) {
+    throw (error.message);
+  }
+};
+
+export const getUser = async (request, response) => {
+  const updateForm = request.body;
+  console.log(updateForm);
+
+  try {
+    if (updateForm == null &&
+      updateForm.userName == null &&
+      updateForm.userName == ''
+    ) {
+
+      return response.status(200).json(generarRespuesta(
+        "Error",
+        "No se encontro el usuario",
+        null,
+        null
+      ));
+    }
+
+    const user = await pool.query(
+      "SELECT * FROM usuario WHERE nombre = $1",
+      [updateForm.userName]
+    );
+
+    if (user.rows.length != 0) {
+      return response
+        .status(200)
+        .json(
+          generarRespuesta(
+            "Exito",
+            "Datos obtenidos correctamente",
+            user.rows[0],
+            null
+          )
+        );
+    } else {
+      return response
+        .status(200)
+        .json(
+          generarRespuesta(
+            "Error",
+            "No se encontro al usuario.",
+            null,
+            null
+          )
+        );
+    }
+  } catch (error) {
+    throw (error.message);
+  }
+};

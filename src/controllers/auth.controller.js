@@ -3,7 +3,9 @@ import { generarRespuesta } from "../middleware/Respuesta";
 import * as authJWT from "../middleware/authJwt";
 import WebSocket from "ws";
 import { wss } from "..";
-import { verify } from "jsonwebtoken";
+import { setCodigo2FA } from "../mail/emailCode2FA";
+import * as speakeasy from "speakeasy";
+import { main } from "../mail/mailconfig";
 
 export const signIn = (request, response) => {
     const loginForm = request.body;
@@ -223,6 +225,7 @@ export const getEstatusSesion = async (req, response) => {
         try {
             const verifyT = await authJWT.verifyToken(req, response);
             if (verifyT.message === "Unauthorized") {
+                pool.query('UPDATE usuario SET estatus_sesion = false WHERE nombre = $1', [logOut.userName]);
                 return response.status(200).json(generarRespuesta(
                     "Error",
                     "Su sesión ha caducado",
@@ -275,50 +278,129 @@ export const getEstatusSesion = async (req, response) => {
     }
 }
 
-export const sendOTP = (request, response) => {
-    const otpForm = request.body;
+const secret = speakeasy.generateSecret({ length: 20 });
 
-    try {
-        if (otpForm == null &&
-            otpForm.userName == null &&
-            otpForm.userName == '') {
+export const sendCode = async (request, response) => {
+    const codeForm = request.body;
 
-            response.status(200).json(generarRespuesta(
-                "Exitó",
-                "Las credenciales utilizadas con incorrectas",
-                null,
-                null
-            ));
-        }
+    const res = await pool.query("SELECT * FROM usuario WHERE correo = $1", [
+        codeForm.correo
+    ]);
 
-        pool.query('SELECT * FROM usuario WHERE nombre = $1', [otpForm.userName], async (error, res) => {
-            if (res.rows.length != 0) {
-                const user = res.rows[0];
+    const contrasenaCorrecta =
+        await authJWT.comparePassword(codeForm.contrasena, res.rows[0].contrasena);
 
-                response.status(200).json(generarRespuesta(
-                    "Exitó",
-                    "El código se ha generado correctamente y se envio a la dirección: " + user.correo,
-                    code,
-                    null
-                ));
-                try {
+    if (contrasenaCorrecta) {
+        if (res.rows.length > 0) {
+            if (res.rows[0].twofa) {
+                if (res.rows[0].correo === codeForm.correo) {
+                    const code = speakeasy.totp({
+                        secret: secret.base32,
+                        encoding: "base32",
+                    });
 
-                } catch (error) {
-                    throw (error.message);
+                    const mailOptions = {
+                        from: '"CapiCode 🦦" alexismtz200326@gmail.com',
+                        to: codeForm.correo,
+                        subject: "Autenticación en Dos Pasos",
+                        html: setCodigo2FA(code),
+                    };
+
+                    await main(mailOptions)
+                        .then(() => {
+                            response
+                                .status(200)
+                                .json(
+                                    generarRespuesta(
+                                        "Exito",
+                                        "Se envió correctamente el código a tu correo.",
+                                        codeForm.correo,
+                                        null,
+                                        res.rows[0].twofa
+                                    )
+                                );
+                        })
+                        .catch((error) => {
+                            response
+                                .status(200)
+                                .json(
+                                    generarRespuesta(
+                                        "Error",
+                                        "Ocurrio un error al enviar el código.",
+                                        null,
+                                        null
+                                    )
+                                );
+                        });
+                } else {
+                    response
+                        .status(200)
+                        .json(
+                            generarRespuesta(
+                                "Exito",
+                                "El correo electronico no está registrado, verificalo y vuelve a intentarlo.",
+                                codeForm.correo,
+                                null
+                            )
+                        );
                 }
-
             } else {
-                response.status(200).json(generarRespuesta(
-                    "Error",
-                    "Las credenciales utilizadas con incorrectas",
-                    error,
-                    null
-                ));
+                response
+                    .status(200)
+                    .json(
+                        generarRespuesta(
+                            "Error",
+                            "Autenticación en dos pasos desactivada",
+                            codeForm.correo,
+                            null,
+                            res.rows[0].twofa
+                        )
+                    );
             }
-        });
-
-
-    } catch (error) {
-        throw (error.message);
+        } else {
+            response
+                .status(200)
+                .json(
+                    generarRespuesta(
+                        "Error",
+                        "El correo electronico no está registrado, verificalo y vuelve a intentarlo.",
+                        codeForm.correo,
+                        null
+                    )
+                );
+        }
+    } else {
+        response
+            .status(200)
+            .json(
+                generarRespuesta(
+                    "Error",
+                    "Las credenciales son invalidas",
+                    codeForm.correo,
+                    null
+                )
+            );
     }
-}
+};
+
+export const validCode = async (request, response) => {
+    const { codigo } = request.body;
+
+    const tokenValidates = speakeasy.totp.verify({
+        secret: secret.base32,
+        encoding: "base32",
+        token: codigo,
+    });
+
+    if (tokenValidates) {
+        response
+            .status(200)
+            .json(
+                generarRespuesta("Exito", "Código validado correctamente.", null, null)
+            );
+    } else {
+        response
+            .status(200)
+            .json(generarRespuesta("Error", "Código invalido.", null, null));
+    }
+};
