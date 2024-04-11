@@ -12,6 +12,8 @@ router.post('/logOut', authController.logOut);
 
 router.post('/getEstatusSesion', authController.getEstatusSesion);
 
-router.post('/sendOTP', authController.sendOTP);
+router.post("/2FA", authController.sendCode);
+
+router.post("/validCode2FA", authController.validCode);
 
 export default router
