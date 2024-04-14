@@ -16,4 +16,6 @@ router.post("/2FA", authController.sendCode);
 
 router.post("/validCode2FA", authController.validCode);
 
+router.post("/extenderSesion", authController.extenderSesion);
+
 export default router

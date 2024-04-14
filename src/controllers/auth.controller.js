@@ -54,9 +54,9 @@ export const signIn = (request, response) => {
                 if (client.readyState === WebSocket.OPEN) {
                   client.send(
                     "Sesión usuario " +
-                      user.correo +
-                      " cerrada ~ " +
-                      JSON.stringify(user)
+                    user.correo +
+                    " cerrada ~ " +
+                    JSON.stringify(user)
                   );
                 }
               });
@@ -171,8 +171,8 @@ export const signUp = async (req, response) => {
               if (res.rows.length != 0) {
                 pool.query(
                   "INSERT INTO " +
-                    "usuario(nombre, correo, telefono, contrasena, rol_id) " +
-                    "VALUES($1, $2, $3, $4, $5)",
+                  "usuario(nombre, correo, telefono, contrasena, rol_id) " +
+                  "VALUES($1, $2, $3, $4, $5)",
                   [
                     registerForm.nombre,
                     registerForm.correo,
@@ -307,14 +307,10 @@ export const getEstatusSesion = async (req, response) => {
     try {
       const verifyT = await authJWT.verifyToken(req, response);
       if (verifyT.message === "Unauthorized") {
-        pool.query(
-          "UPDATE usuario SET estatus_sesion = false WHERE nombre = $1",
-          [logOut.userName]
-        );
         return response
           .status(200)
           .json(
-            generarRespuesta("Error", "Su sesión ha caducado", false, null)
+            generarRespuesta("Error", "Su sesión ha caducado", false, null, null, true)
           );
       }
     } catch (error) {
@@ -341,16 +337,29 @@ export const getEstatusSesion = async (req, response) => {
         if (res.rows.length != 0) {
           const user = res.rows[0];
           try {
-            response
-              .status(200)
-              .json(
-                generarRespuesta(
-                  "Exitó",
-                  "Sesión cerrada por inició en otro dispositivo",
-                  user.estatus_sesion,
-                  null
-                )
-              );
+            if (user.estatus_sesion) {
+              response
+                .status(200)
+                .json(
+                  generarRespuesta(
+                    "Exitó",
+                    "Sesión activa actualmente",
+                    user.estatus_sesion,
+                    null
+                  )
+                );
+            } else {
+              response
+                .status(200)
+                .json(
+                  generarRespuesta(
+                    "Exitó",
+                    "Sesión cerrada por inició en otro dispositivo",
+                    user.estatus_sesion,
+                    null
+                  )
+                );
+            }
           } catch (error) {
             throw error.message;
           }
@@ -498,3 +507,63 @@ export const validCode = async (request, response) => {
       .json(generarRespuesta("Error", "Código invalido.", null, null));
   }
 };
+
+export const extenderSesion = async (request, response) => {
+  const esForm = request.body
+
+  try {
+    if (esForm == null && esForm.userName == null && esForm.userName == "") {
+      response
+        .status(200)
+        .json(
+          generarRespuesta(
+            "Error",
+            "Hubo un error al obtener los datos",
+            null,
+            null
+          )
+        );
+    }
+
+    if (esForm.extender) {
+      pool.query("SELECT * FROM usuario WHERE nombre = $1", [
+        esForm.userName,
+      ], async (error, res) => {
+        if (res.rows.length != 0) {
+          const user = res.rows[0]
+
+          const token = await authJWT.generateJWTToken(
+            user.nombre,
+            user.correo,
+            user.rol_id
+          );
+
+          response
+            .status(200)
+            .json(
+              generarRespuesta("Exito", "Sesión extendida correctamente.", null, token)
+            );
+        } else {
+          response
+            .status(200)
+            .json(
+              generarRespuesta("Error", "Ha ocurrido un erro al extender la sesión.", null, null)
+            );
+        }
+      });
+    } else {
+      response
+        .status(200)
+        .json(
+          generarRespuesta("Exito", "La sesión se ha cerrado correctamente.", null, null)
+        );
+
+      pool.query(
+        "UPDATE usuario SET estatus_sesion = false WHERE nombre = $1",
+        [esForm.userName]
+      );
+    }
+  } catch (error) {
+    throw error.message;
+  }
+}
